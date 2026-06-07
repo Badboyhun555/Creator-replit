@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script type="module" src="/@vite/client"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account – CreatorVault</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --primary:#EC4899; --secondary:#F9A8D4; --accent:#BE185D;
+      --bg:#FFF8FC; --card:#FFFFFF; --text:#111827; --text-muted:#6B7280;
+      --border:rgba(236,72,153,0.15); --glass-bg:rgba(255,255,255,0.8);
+      --glass-border:rgba(236,72,153,0.2);
+      --shadow:0 4px 24px rgba(236,72,153,0.1);
+      --shadow-lg:0 8px 40px rgba(236,72,153,0.18);
+      --error:#DC2626; --success:#059669;
+    }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+    nav {
+      position:fixed; top:0; left:0; right:0; z-index:100;
+      background:rgba(255,248,252,0.88); backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px); border-bottom:1px solid var(--glass-border);
+      height:64px; display:flex; align-items:center; justify-content:space-between; padding:0 1.5rem;
+    }
+    .nav-brand { font-size:1.4rem; font-weight:800; background:linear-gradient(135deg,var(--primary),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; text-decoration:none; }
+    .nav-links { display:flex; gap:0.25rem; align-items:center; }
+    .nav-links a { text-decoration:none; color:var(--text-muted); font-weight:500; font-size:0.9rem; padding:0.5rem 1rem; border-radius:8px; transition:all 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color:var(--primary); background:rgba(236,72,153,0.08); }
+    .nav-links a.btn-nav { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white !important; border-radius:20px; padding:0.5rem 1.25rem; }
+    .hamburger { display:none; flex-direction:column; gap:5px; cursor:pointer; padding:8px; border:none; background:none; }
+    .hamburger span { display:block; width:24px; height:2px; background:var(--text); border-radius:2px; }
+
+    .mobile-overlay { position:fixed; inset:0; background:rgba(17,24,39,0.4); z-index:150; opacity:0; pointer-events:none; transition:opacity 0.3s; }
+    .mobile-overlay.open { opacity:1; pointer-events:all; }
+    .mobile-menu { position:fixed; top:0; right:-100%; width:min(320px,85vw); height:100vh; background:rgba(255,248,252,0.97); backdrop-filter:blur(30px); border-left:1px solid var(--glass-border); z-index:200; transition:right 0.35s cubic-bezier(0.4,0,0.2,1); padding:2rem 1.5rem; display:flex; flex-direction:column; }
+    .mobile-menu.open { right:0; }
+    .mobile-menu-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; }
+    .mobile-menu-close { background:rgba(236,72,153,0.1); border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.1rem; color:var(--primary); display:flex; align-items:center; justify-content:center; }
+    .mobile-links { display:flex; flex-direction:column; gap:0.5rem; }
+    .mobile-links a { text-decoration:none; color:var(--text); font-weight:500; font-size:1.05rem; padding:0.9rem 1rem; border-radius:12px; transition:all 0.2s; border:1px solid transparent; }
+    .mobile-links a:hover { color:var(--primary); background:rgba(236,72,153,0.06); border-color:var(--border); }
+
+    .page-wrap { margin-top:64px; padding:2.5rem 1.5rem 5rem; max-width:900px; margin-left:auto; margin-right:auto; }
+
+    /* TOP TABS */
+    .top-tabs { display:flex; gap:0.4rem; background:rgba(236,72,153,0.05); border:1px solid var(--glass-border); border-radius:14px; padding:0.35rem; margin-bottom:2rem; overflow-x:auto; white-space:nowrap; }
+    .top-tab { padding:0.65rem 1.2rem; border:none; border-radius:10px; font-size:0.88rem; font-weight:600; cursor:pointer; transition:all 0.25s; background:transparent; color:var(--text-muted); white-space:nowrap; }
+    .top-tab.active { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; box-shadow:0 4px 14px rgba(236,72,153,0.3); }
+    .top-tab:hover:not(.active) { color:var(--primary); background:rgba(236,72,153,0.08); }
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+
+    /* CARDS */
+    .glass-card { background:var(--glass-bg); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--glass-border); border-radius:20px; box-shadow:var(--shadow); }
+
+    /* AUTH */
+    .auth-card { max-width:460px; margin:0 auto; padding:2.5rem 2rem; }
+    .auth-toggle { display:flex; gap:0.5rem; margin-bottom:2rem; background:rgba(236,72,153,0.06); border:1px solid var(--glass-border); border-radius:12px; padding:0.3rem; }
+    .auth-toggle-btn { flex:1; padding:0.65rem; border:none; border-radius:9px; font-size:0.92rem; font-weight:600; cursor:pointer; transition:all 0.25s; background:transparent; color:var(--text-muted); }
+    .auth-toggle-btn.active { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; box-shadow:0 3px 12px rgba(236,72,153,0.28); }
+    .auth-form { display:none; }
+    .auth-form.active { display:block; }
+    .auth-title { font-size:1.5rem; font-weight:700; margin-bottom:0.25rem; }
+    .auth-sub { color:var(--text-muted); font-size:0.9rem; margin-bottom:1.75rem; }
+    .form-group { margin-bottom:1.1rem; }
+    label { display:block; font-size:0.85rem; font-weight:600; color:var(--text); margin-bottom:0.4rem; }
+    input[type=text], input[type=email], input[type=password], input[type=number], input[type=url], textarea {
+      width:100%; padding:0.75rem 1rem; border:1.5px solid var(--border);
+      border-radius:10px; font-size:0.92rem; font-family:inherit; color:var(--text);
+      background:rgba(255,255,255,0.9); outline:none; transition:border-color 0.2s;
+    }
+    input:focus, textarea:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(236,72,153,0.1); }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:0.5rem; padding:0.8rem 1.5rem; border-radius:50px; font-weight:600; font-size:0.95rem; cursor:pointer; border:none; text-decoration:none; transition:all 0.25s; }
+    .btn-primary { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; box-shadow:0 4px 16px rgba(236,72,153,0.3); width:100%; }
+    .btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 22px rgba(236,72,153,0.4); }
+    .btn-outline { background:transparent; color:var(--primary); border:2px solid var(--primary); }
+    .btn-outline:hover { background:var(--primary); color:white; }
+    .btn-danger { background:linear-gradient(135deg,#EF4444,#DC2626); color:white; box-shadow:0 4px 14px rgba(239,68,68,0.25); }
+    .btn-success { background:linear-gradient(135deg,#10B981,#059669); color:white; }
+    .msg { padding:0.75rem 1rem; border-radius:10px; font-size:0.88rem; font-weight:500; margin-bottom:1rem; display:none; }
+    .msg.show { display:block; }
+    .msg.error { background:rgba(220,38,38,0.08); color:var(--error); border:1px solid rgba(220,38,38,0.2); }
+    .msg.success { background:rgba(5,150,105,0.08); color:var(--success); border:1px solid rgba(5,150,105,0.2); }
+
+    /* MEMBERSHIP */
+    .plans-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:1.25rem; }
+    .plan-card {
+      background:var(--glass-bg); backdrop-filter:blur(20px); border:1.5px solid var(--glass-border);
+      border-radius:20px; padding:1.75rem 1.5rem; text-align:center;
+      box-shadow:var(--shadow); transition:all 0.3s; position:relative; overflow:hidden;
+    }
+    .plan-card:hover { transform:translateY(-5px); box-shadow:var(--shadow-lg); }
+    .plan-card.featured { border-color:var(--primary); }
+    .plan-card.featured::before { content:'Most Popular'; position:absolute; top:0; left:0; right:0; background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; padding:0.35rem; }
+    .plan-name { font-size:1.1rem; font-weight:700; margin-bottom:0.5rem; margin-top:1rem; }
+    .plan-card:not(.featured) .plan-name { margin-top:0; }
+    .plan-price { font-size:2.2rem; font-weight:800; background:linear-gradient(135deg,var(--primary),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; line-height:1; margin-bottom:0.25rem; }
+    .plan-period { font-size:0.8rem; color:var(--text-muted); margin-bottom:1.25rem; }
+    .plan-features { list-style:none; text-align:left; margin-bottom:1.5rem; }
+    .plan-features li { font-size:0.87rem; padding:0.35rem 0; color:var(--text-muted); display:flex; align-items:center; gap:0.5rem; border-bottom:1px solid rgba(236,72,153,0.07); }
+    .plan-features li:last-child { border-bottom:none; }
+    .plan-features li::before { content:'✓'; color:var(--primary); font-weight:700; flex-shrink:0; }
+    .btn-plan { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; border:none; border-radius:50px; padding:0.7rem 1.5rem; font-size:0.9rem; font-weight:600; cursor:pointer; width:100%; transition:all 0.25s; box-shadow:0 4px 14px rgba(236,72,153,0.28); }
+    .btn-plan:hover { transform:translateY(-2px); box-shadow:0 7px 20px rgba(236,72,153,0.38); }
+
+    /* DASHBOARD */
+    .dash-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.25rem; margin-bottom:1.5rem; }
+    .dash-card { background:var(--glass-bg); backdrop-filter:blur(16px); border:1px solid var(--glass-border); border-radius:16px; padding:1.5rem; box-shadow:var(--shadow); }
+    .dash-card-title { font-size:0.8rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); margin-bottom:0.75rem; }
+    .dash-name { font-size:1.4rem; font-weight:700; color:var(--text); }
+    .dash-email { font-size:0.88rem; color:var(--text-muted); margin-top:0.2rem; }
+    .membership-badge { display:inline-flex; align-items:center; gap:0.4rem; background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; font-size:0.85rem; font-weight:700; padding:0.35rem 1rem; border-radius:20px; text-transform:capitalize; margin-bottom:0.5rem; }
+    .membership-free { background:rgba(107,114,128,0.12); color:var(--text-muted); font-size:0.85rem; font-weight:600; padding:0.35rem 1rem; border-radius:20px; display:inline-flex; }
+    .expiry-txt { font-size:0.82rem; color:var(--text-muted); margin-top:0.25rem; }
+    .quick-links { display:flex; gap:0.75rem; flex-wrap:wrap; margin-top:0.75rem; }
+    .quick-link { text-decoration:none; color:var(--primary); font-size:0.88rem; font-weight:600; padding:0.45rem 1rem; border:1.5px solid var(--primary); border-radius:20px; transition:all 0.2s; }
+    .quick-link:hover { background:var(--primary); color:white; }
+
+    /* PAYMENTS TABLE */
+    .payments-section { margin-top:1.5rem; }
+    .payments-title { font-size:1.1rem; font-weight:700; margin-bottom:1rem; }
+    .payments-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+    .payments-table th { text-align:left; padding:0.6rem 0.8rem; color:var(--text-muted); font-weight:600; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; border-bottom:2px solid var(--border); }
+    .payments-table td { padding:0.75rem 0.8rem; border-bottom:1px solid var(--border); }
+    .payments-table tr:last-child td { border-bottom:none; }
+    .status-badge { display:inline-block; font-size:0.72rem; font-weight:700; padding:0.2rem 0.65rem; border-radius:20px; text-transform:capitalize; }
+    .status-pending { background:rgba(245,158,11,0.12); color:#D97706; }
+    .status-approved { background:rgba(5,150,105,0.12); color:#059669; }
+    .status-rejected { background:rgba(220,38,38,0.1); color:#DC2626; }
+    .logout-btn { background:transparent; border:1.5px solid rgba(220,38,38,0.4); color:#DC2626; border-radius:8px; padding:0.45rem 1.1rem; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.2s; margin-top:1rem; }
+    .logout-btn:hover { background:#DC2626; color:white; border-color:#DC2626; }
+
+    /* PAYMENT TAB */
+    .payment-box { max-width:580px; margin:0 auto; }
+    .payment-info-card { background:linear-gradient(135deg,var(--primary),var(--accent)); border-radius:20px; padding:2rem; color:white; text-align:center; margin-bottom:1.75rem; }
+    .payment-info-card h3 { font-size:1.15rem; font-weight:700; margin-bottom:1.25rem; }
+    .qr-img { width:180px; height:180px; object-fit:contain; background:white; border-radius:12px; padding:0.5rem; margin:0 auto 1rem; display:block; }
+    .qr-placeholder { width:180px; height:180px; background:rgba(255,255,255,0.15); border-radius:12px; margin:0 auto 1rem; display:flex; align-items:center; justify-content:center; font-size:3rem; }
+    .upi-detail { background:rgba(255,255,255,0.15); border-radius:10px; padding:0.75rem 1rem; margin-bottom:0.5rem; font-size:0.9rem; }
+    .upi-label { font-size:0.72rem; font-weight:600; opacity:0.8; text-transform:uppercase; letter-spacing:0.06em; }
+    .upi-val { font-size:1rem; font-weight:700; margin-top:0.15rem; }
+    .plan-selected-info { background:rgba(236,72,153,0.07); border:1px solid var(--border); border-radius:12px; padding:1rem 1.25rem; margin-bottom:1.25rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; }
+    .plan-selected-name { font-weight:700; color:var(--text); font-size:1rem; }
+    .plan-selected-price { font-weight:800; color:var(--primary); font-size:1.1rem; }
+
+    .not-logged { text-align:center; padding:3rem 2rem; }
+    .not-logged h3 { font-size:1.3rem; font-weight:700; margin-bottom:0.5rem; }
+    .not-logged p { color:var(--text-muted); margin-bottom:1.5rem; }
+
+    footer { background:linear-gradient(135deg,#1F0A13 0%,#2D0E1E 100%); color:rgba(255,255,255,0.65); text-align:center; padding:2rem 1.5rem; margin-top:3rem; }
+    .footer-brand { font-size:1.2rem; font-weight:800; background:linear-gradient(135deg,var(--secondary),var(--primary)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.5rem; display:block; }
+    footer p { font-size:0.8rem; }
+
+    .spinner { display:inline-block; width:18px; height:18px; border:2px solid rgba(255,255,255,0.4); border-top-color:white; border-radius:50%; animation:spin 0.7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    @media(max-width:768px){ .nav-links{display:none} .hamburger{display:flex} .dash-grid{grid-template-columns:1fr} }
+    @media(max-width:480px){ .page-wrap{padding:1.5rem 1rem 4rem} .auth-card{padding:1.75rem 1.25rem} }
+    @media(max-width:600px){ .plans-grid{grid-template-columns:1fr} }
+
+    .section-divider { height:1px; background:var(--border); margin:1.5rem 0; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="./index.html" class="nav-brand">CreatorVault</a>
+  <div class="nav-links">
+    <a href="./index.html">Home</a>
+    <a href="./content.html">Content</a>
+    <a href="./account.html#membership">Membership</a>
+    <a href="./account.html" class="btn-nav active" id="navAccountLink">Account</a>
+  </div>
+  <button class="hamburger" id="hamburgerBtn"><span></span><span></span><span></span></button>
+</nav>
+
+<div class="mobile-overlay" id="mobileOverlay"></div>
+<div class="mobile-menu" id="mobileMenu">
+  <div class="mobile-menu-header">
+    <span class="nav-brand">CreatorVault</span>
+    <button class="mobile-menu-close" id="menuClose">✕</button>
+  </div>
+  <div class="mobile-links">
+    <a href="./index.html">Home</a>
+    <a href="./content.html">Content</a>
+    <a href="./account.html">Account</a>
+  </div>
+</div>
+
+<div class="page-wrap" style="margin-top:88px">
+  <div class="top-tabs" id="topTabs">
+    <button class="top-tab active" data-pane="auth">Login / Register</button>
+    <button class="top-tab" data-pane="membership" id="membershipTabBtn">Membership</button>
+    <button class="top-tab" data-pane="dashboard" id="dashboardTabBtn">Dashboard</button>
+    <button class="top-tab" data-pane="payment" id="paymentTabBtn">Payment</button>
+  </div>
+
+  <!-- AUTH TAB -->
+  <div class="tab-pane active" id="pane-auth">
+    <div class="glass-card auth-card">
+      <div class="auth-toggle">
+        <button class="auth-toggle-btn active" id="loginToggle">Login</button>
+        <button class="auth-toggle-btn" id="registerToggle">Register</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div class="auth-form active" id="loginForm">
+        <h2 class="auth-title">Welcome back</h2>
+        <p class="auth-sub">Sign in to access your account</p>
+        <div class="msg" id="loginMsg"></div>
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Your password" autocomplete="current-password" />
+        </div>
+        <button class="btn btn-primary" id="loginBtn">Login</button>
+      </div>
+
+      <!-- REGISTER -->
+      <div class="auth-form" id="registerForm">
+        <h2 class="auth-title">Create Account</h2>
+        <p class="auth-sub">Join and start exploring exclusive content</p>
+        <div class="msg" id="registerMsg"></div>
+        <div class="form-group">
+          <label for="regName">Full Name</label>
+          <input type="text" id="regName" placeholder="Sophia Bennett" />
+        </div>
+        <div class="form-group">
+          <label for="regEmail">Email</label>
+          <input type="email" id="regEmail" placeholder="your@email.com" autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" placeholder="Create a password" />
+        </div>
+        <div class="form-group">
+          <label for="regConfirm">Confirm Password</label>
+          <input type="password" id="regConfirm" placeholder="Repeat your password" />
+        </div>
+        <button class="btn btn-primary" id="registerBtn">Create Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMBERSHIP TAB -->
+  <div class="tab-pane" id="pane-membership">
+    <div class="plans-grid">
+      <div class="plan-card">
+        <div class="plan-name">Basic</div>
+        <div class="plan-price">$9</div>
+        <div class="plan-period">per month</div>
+        <ul class="plan-features">
+          <li>Access to free content</li>
+          <li>HD photo gallery</li>
+          <li>Monthly exclusive posts</li>
+          <li>Community access</li>
+        </ul>
+        <button class="btn-plan" onclick="selectPlan('Basic','$9/month')">Subscribe Now</button>
+      </div>
+      <div class="plan-card featured">
+        <div class="plan-name">Premium</div>
+        <div class="plan-price">$19</div>
+        <div class="plan-period">per month</div>
+        <ul class="plan-features">
+          <li>All Basic features</li>
+          <li>Full premium content</li>
+          <li>4K photo library</li>
+          <li>All premium videos</li>
+          <li>Early access content</li>
+        </ul>
+        <button class="btn-plan" onclick="selectPlan('Premium','$19/month')">Subscribe Now</button>
+      </div>
+      <div class="plan-card">
+        <div class="plan-name">VIP</div>
+        <div class="plan-price">$49</div>
+        <div class="plan-period">per month</div>
+        <ul class="plan-features">
+          <li>All Premium features</li>
+          <li>Personal messages</li>
+          <li>VIP-only content</li>
+          <li>Monthly 1-on-1 chat</li>
+          <li>Priority support</li>
+        </ul>
+        <button class="btn-plan" onclick="selectPlan('VIP','$49/month')">Subscribe Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD TAB -->
+  <div class="tab-pane" id="pane-dashboard">
+    <div id="dashboardContent"></div>
+  </div>
+
+  <!-- PAYMENT TAB -->
+  <div class="tab-pane" id="pane-payment">
+    <div class="payment-box" id="paymentContent"></div>
+  </div>
+</div>
+
+<footer>
+  <span class="footer-brand">CreatorVault</span>
+  <p>© 2025 Sophia Bennett. All rights reserved.</p>
+</footer>
+
+<script>
+  const SUPABASE_URL = 'https://your-project.supabase.co';
+  const SUPABASE_ANON_KEY = 'your-anon-key';
+
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let selectedPlan = null;
+  let selectedPrice = null;
+
+  const getSession = () => { try { return JSON.parse(localStorage.getItem('cv_session') || 'null'); } catch { return null; } };
+  const setSession = (data) => localStorage.setItem('cv_session', JSON.stringify(data));
+  const clearSession = () => localStorage.removeItem('cv_session');
+  const escHtml = (s) => { if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  let session = getSession();
+
+  // Mobile menu
+  const hamburger = document.getElementById('hamburgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  const mobileOverlay = document.getElementById('mobileOverlay');
+  const menuClose = document.getElementById('menuClose');
+  hamburger.addEventListener('click', () => { mobileMenu.classList.add('open'); mobileOverlay.classList.add('open'); document.body.style.overflow='hidden'; });
+  menuClose.addEventListener('click', () => { mobileMenu.classList.remove('open'); mobileOverlay.classList.remove('open'); document.body.style.overflow=''; });
+  mobileOverlay.addEventListener('click', () => { mobileMenu.classList.remove('open'); mobileOverlay.classList.remove('open'); document.body.style.overflow=''; });
+
+  // TABS
+  const topTabs = document.querySelectorAll('.top-tab');
+  const tabPanes = document.querySelectorAll('.tab-pane');
+  function switchTab(name) {
+    topTabs.forEach(t => t.classList.toggle('active', t.dataset.pane === name));
+    tabPanes.forEach(p => p.classList.toggle('active', p.id === 'pane-' + name));
+    if (name === 'dashboard') renderDashboard();
+    if (name === 'payment') renderPayment();
+  }
+  topTabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.pane)));
+
+  // Handle hash
+  if (window.location.hash === '#membership') switchTab('membership');
+  if (window.location.hash === '#payment') switchTab('payment');
+
+  // If already logged in, redirect auth tab
+  if (session) {
+    document.getElementById('navAccountLink').textContent = session.user_name ? session.user_name.split(' ')[0] : 'Account';
+    // Auto-open dashboard if already logged in
+    switchTab('dashboard');
+  }
+
+  // AUTH TOGGLE
+  document.getElementById('loginToggle').addEventListener('click', () => {
+    document.getElementById('loginToggle').classList.add('active');
+    document.getElementById('registerToggle').classList.remove('active');
+    document.getElementById('loginForm').classList.add('active');
+    document.getElementById('registerForm').classList.remove('active');
+  });
+  document.getElementById('registerToggle').addEventListener('click', () => {
+    document.getElementById('registerToggle').classList.add('active');
+    document.getElementById('loginToggle').classList.remove('active');
+    document.getElementById('registerForm').classList.add('active');
+    document.getElementById('loginForm').classList.remove('active');
+  });
+
+  function showMsg(id, text, type) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'msg ' + type + ' show';
+  }
+
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (loading) { btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true; }
+    else { btn.disabled = false; }
+  }
+
+  // LOGIN
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) { showMsg('loginMsg', 'Please fill in all fields.', 'error'); return; }
+    setLoading('loginBtn', true);
+    try {
+      const { data, error } = await db.from('users').select('*').eq('email', email).eq('password', password).single();
+      if (error || !data) { showMsg('loginMsg', 'Invalid email or password.', 'error'); document.getElementById('loginBtn').innerHTML = 'Login'; document.getElementById('loginBtn').disabled = false; return; }
+      session = { user_id: data.id, user_name: data.full_name, user_email: data.email, membership: data.membership, role: data.role };
+      setSession(session);
+      showMsg('loginMsg', 'Login successful! Welcome back, ' + data.full_name + '.', 'success');
+      setTimeout(() => { switchTab('dashboard'); }, 1000);
+    } catch(e) {
+      showMsg('loginMsg', 'An error occurred. Please try again.', 'error');
+    } finally {
+      const btn = document.getElementById('loginBtn');
+      if (btn) { btn.textContent = 'Login'; btn.disabled = false; }
+    }
+  });
+
+  // REGISTER
+  document.getElementById('registerBtn').addEventListener('click', async () => {
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const confirm = document.getElementById('regConfirm').value;
+    if (!name || !email || !password || !confirm) { showMsg('registerMsg', 'Please fill in all fields.', 'error'); return; }
+    if (password !== confirm) { showMsg('registerMsg', 'Passwords do not match.', 'error'); return; }
+    if (password.length < 4) { showMsg('registerMsg', 'Password must be at least 4 characters.', 'error'); return; }
+    setLoading('registerBtn', true);
+    try {
+      const { data: existing } = await db.from('users').select('id').eq('email', email).single();
+      if (existing) { showMsg('registerMsg', 'This email is already registered.', 'error'); document.getElementById('registerBtn').textContent = 'Create Account'; document.getElementById('registerBtn').disabled = false; return; }
+      const { data, error } = await db.from('users').insert([{ full_name: name, email, password, membership: 'free', role: 'user' }]).select().single();
+      if (error) throw error;
+      session = { user_id: data.id, user_name: data.full_name, user_email: data.email, membership: data.membership, role: data.role };
+      setSession(session);
+      showMsg('registerMsg', 'Account created! Welcome, ' + name + '.', 'success');
+      setTimeout(() => { switchTab('dashboard'); }, 1200);
+    } catch(e) {
+      showMsg('registerMsg', 'Registration failed. Please try again.', 'error');
+    } finally {
+      const btn = document.getElementById('registerBtn');
+      if (btn) { btn.textContent = 'Create Account'; btn.disabled = false; }
+    }
+  });
+
+  // MEMBERSHIP
+  function selectPlan(plan, price) {
+    if (!session) {
+      switchTab('auth');
+      document.getElementById('loginToggle').click();
+      return;
+    }
+    selectedPlan = plan;
+    selectedPrice = price;
+    switchTab('payment');
+  }
+
+  // DASHBOARD
+  async function renderDashboard() {
+    const container = document.getElementById('dashboardContent');
+    if (!session) {
+      container.innerHTML = `<div class="not-logged">
+        <h3>Please log in</h3>
+        <p>Sign in or create an account to view your dashboard.</p>
+        <button class="btn btn-primary" style="width:auto;padding:0.8rem 2rem" onclick="switchTab('auth')">Login / Register</button>
+      </div>`;
+      return;
+    }
+
+    const expiry = session.membership_expiry ? new Date(session.membership_expiry).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }) : null;
+
+    // Fetch recent payments
+    let paymentsHtml = '<p style="color:var(--text-muted);font-size:0.88rem">No payments yet.</p>';
+    try {
+      const { data } = await db.from('payments').select('*').eq('user_id', session.user_id).order('created_at', { ascending:false }).limit(5);
+      if (data && data.length) {
+        paymentsHtml = `<div style="overflow-x:auto"><table class="payments-table">
+          <thead><tr><th>Plan</th><th>Transaction ID</th><th>Date</th><th>Status</th></tr></thead>
+          <tbody>${data.map(p => `<tr>
+            <td>${escHtml(p.plan)}</td>
+            <td style="font-family:monospace;font-size:0.8rem">${escHtml(p.transaction_id)}</td>
+            <td>${new Date(p.created_at).toLocaleDateString()}</td>
+            <td><span class="status-badge status-${escHtml(p.status)}">${escHtml(p.status)}</span></td>
+          </tr>`).join('')}</tbody>
+        </table></div>`;
+      }
+    } catch {}
+
+    container.innerHTML = `
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-card-title">Profile</div>
+          <div class="dash-name">${escHtml(session.user_name)}</div>
+          <div class="dash-email">${escHtml(session.user_email)}</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-title">Membership</div>
+          ${session.membership && session.membership !== 'free'
+            ? `<span class="membership-badge">💎 ${escHtml(session.membership)}</span>`
+            : `<span class="membership-free">Free Plan</span>`}
+          ${expiry ? `<div class="expiry-txt">Expires: ${expiry}</div>` : ''}
+        </div>
+      </div>
+      <div class="dash-card" style="margin-bottom:1.25rem">
+        <div class="dash-card-title">Quick Links</div>
+        <div class="quick-links" style="margin-top:0.5rem">
+          <a href="./content.html" class="quick-link">Browse Content</a>
+          <button class="quick-link" style="background:none;font-family:inherit;cursor:pointer" onclick="switchTab('membership')">Upgrade Membership</button>
+        </div>
+      </div>
+      <div class="payments-section">
+        <div class="payments-title">Recent Payments</div>
+        ${paymentsHtml}
+      </div>
+      <div class="section-divider"></div>
+      <button class="logout-btn" id="logoutBtn">Sign Out</button>`;
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      clearSession();
+      session = null;
+      window.location.href = './account.html';
+    });
+  }
+
+  // PAYMENT
+  async function renderPayment() {
+    const container = document.getElementById('paymentContent');
+    if (!session) {
+      container.innerHTML = `<div class="not-logged">
+        <h3>Please log in first</h3>
+        <p>You need an account to make a payment.</p>
+        <button class="btn btn-primary" style="width:auto;padding:0.8rem 2rem" onclick="switchTab('auth')">Login / Register</button>
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:2rem">Loading payment details…</p>';
+
+    let settings = null;
+    try {
+      const { data } = await db.from('payment_settings').select('*').limit(1).single();
+      settings = data;
+    } catch {}
+
+    const qrHtml = settings && settings.qr_image_url
+      ? `<img src="${escHtml(settings.qr_image_url)}" alt="QR Code" class="qr-img" onerror="this.style.display='none'" />`
+      : `<div class="qr-placeholder">📱</div>`;
+
+    const planHtml = selectedPlan
+      ? `<div class="plan-selected-info">
+          <span class="plan-selected-name">${escHtml(selectedPlan)} Plan</span>
+          <span class="plan-selected-price">${escHtml(selectedPrice)}</span>
+        </div>`
+      : `<div class="plan-selected-info">
+          <span class="plan-selected-name" style="color:var(--text-muted)">No plan selected</span>
+          <button class="btn-plan" style="padding:0.45rem 1rem;font-size:0.82rem;width:auto" onclick="switchTab('membership')">Choose Plan</button>
+        </div>`;
+
+    container.innerHTML = `
+      <div class="payment-info-card">
+        <h3>Complete Your Payment</h3>
+        ${qrHtml}
+        <div class="upi-detail">
+          <div class="upi-label">UPI ID</div>
+          <div class="upi-val">${settings ? escHtml(settings.upi_id) : '—'}</div>
+        </div>
+        <div class="upi-detail" style="margin-top:0.5rem">
+          <div class="upi-label">Account Holder</div>
+          <div class="upi-val">${settings ? escHtml(settings.account_holder) : '—'}</div>
+        </div>
+      </div>
+      ${planHtml}
+      <div class="glass-card" style="padding:1.75rem 1.5rem">
+        <div class="msg" id="paymentMsg"></div>
+        <div class="form-group">
+          <label for="txnId">Transaction ID <span style="color:var(--error)">*</span></label>
+          <input type="text" id="txnId" placeholder="e.g. TXN123456789" />
+        </div>
+        <div class="form-group">
+          <label for="screenshotUrl">Screenshot URL <span style="color:var(--text-muted);font-weight:400">(optional)</span></label>
+          <input type="url" id="screenshotUrl" placeholder="https://..." />
+        </div>
+        <button class="btn btn-primary" id="submitPayBtn">Submit Payment</button>
+      </div>`;
+
+    document.getElementById('submitPayBtn').addEventListener('click', async () => {
+      const txnId = document.getElementById('txnId').value.trim();
+      const screenshotUrl = document.getElementById('screenshotUrl').value.trim();
+      if (!txnId) { showMsg('paymentMsg', 'Please enter your Transaction ID.', 'error'); return; }
+      if (!selectedPlan) { showMsg('paymentMsg', 'Please select a membership plan first.', 'error'); return; }
+      const btn = document.getElementById('submitPayBtn');
+      btn.innerHTML = '<span class="spinner"></span> Submitting…'; btn.disabled = true;
+      try {
+        const { error } = await db.from('payments').insert([{
+          user_id: session.user_id,
+          user_name: session.user_name,
+          user_email: session.user_email,
+          plan: selectedPlan,
+          transaction_id: txnId,
+          screenshot_url: screenshotUrl || null,
+          status: 'pending'
+        }]);
+        if (error) throw error;
+        showMsg('paymentMsg', 'Payment submitted successfully! Please wait for admin approval.', 'success');
+        document.getElementById('txnId').value = '';
+        document.getElementById('screenshotUrl').value = '';
+      } catch(e) {
+        showMsg('paymentMsg', 'Submission failed. Please try again.', 'error');
+      } finally {
+        btn.textContent = 'Submit Payment'; btn.disabled = false;
+      }
+    });
+  }
+</script>
+<script src="https://replit-cdn.com/replit-pill/replit-pill.global.js" data-repl-id="df04d81c-f319-4ea8-9745-3d4afadb740b"></script></body>
+</html>
