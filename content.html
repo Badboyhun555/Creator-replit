@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script type="module" src="/@vite/client"></script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Content – CreatorVault</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --primary:#EC4899; --secondary:#F9A8D4; --accent:#BE185D;
+      --bg:#FFF8FC; --card:#FFFFFF; --text:#111827; --text-muted:#6B7280;
+      --border:rgba(236,72,153,0.15); --glass-bg:rgba(255,255,255,0.75);
+      --glass-border:rgba(236,72,153,0.2);
+      --shadow:0 4px 24px rgba(236,72,153,0.1);
+      --shadow-lg:0 8px 40px rgba(236,72,153,0.18);
+    }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+    nav {
+      position:fixed; top:0; left:0; right:0; z-index:100;
+      background:rgba(255,248,252,0.88); backdrop-filter:blur(20px);
+      -webkit-backdrop-filter:blur(20px); border-bottom:1px solid var(--glass-border);
+      height:64px; display:flex; align-items:center; justify-content:space-between; padding:0 1.5rem;
+    }
+    .nav-brand { font-size:1.4rem; font-weight:800; background:linear-gradient(135deg,var(--primary),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; text-decoration:none; }
+    .nav-links { display:flex; gap:0.25rem; align-items:center; }
+    .nav-links a { text-decoration:none; color:var(--text-muted); font-weight:500; font-size:0.9rem; padding:0.5rem 1rem; border-radius:8px; transition:all 0.2s; }
+    .nav-links a:hover, .nav-links a.active { color:var(--primary); background:rgba(236,72,153,0.08); }
+    .nav-links a.btn-nav { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white !important; border-radius:20px; padding:0.5rem 1.25rem; }
+    .hamburger { display:none; flex-direction:column; gap:5px; cursor:pointer; padding:8px; border:none; background:none; }
+    .hamburger span { display:block; width:24px; height:2px; background:var(--text); border-radius:2px; transition:all 0.3s; }
+
+    .mobile-overlay { position:fixed; inset:0; background:rgba(17,24,39,0.4); z-index:150; opacity:0; pointer-events:none; transition:opacity 0.3s; }
+    .mobile-overlay.open { opacity:1; pointer-events:all; }
+    .mobile-menu { position:fixed; top:0; right:-100%; width:min(320px,85vw); height:100vh; background:rgba(255,248,252,0.97); backdrop-filter:blur(30px); border-left:1px solid var(--glass-border); z-index:200; transition:right 0.35s cubic-bezier(0.4,0,0.2,1); padding:2rem 1.5rem; display:flex; flex-direction:column; }
+    .mobile-menu.open { right:0; }
+    .mobile-menu-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; }
+    .mobile-menu-close { background:rgba(236,72,153,0.1); border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.1rem; color:var(--primary); display:flex; align-items:center; justify-content:center; }
+    .mobile-links { display:flex; flex-direction:column; gap:0.5rem; }
+    .mobile-links a { text-decoration:none; color:var(--text); font-weight:500; font-size:1.05rem; padding:0.9rem 1rem; border-radius:12px; transition:all 0.2s; border:1px solid transparent; }
+    .mobile-links a:hover { color:var(--primary); background:rgba(236,72,153,0.06); border-color:var(--border); }
+
+    .page-hero { margin-top:64px; padding:3rem 1.5rem 2rem; text-align:center; background:linear-gradient(135deg,#FCE7F3 0%,#FFF8FC 100%); border-bottom:1px solid var(--border); }
+    .page-hero h1 { font-size:clamp(1.8rem,4vw,2.8rem); font-weight:800; margin-bottom:0.5rem; }
+    .page-hero h1 span { background:linear-gradient(135deg,var(--primary),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .page-hero p { color:var(--text-muted); font-size:1rem; }
+
+    /* TABS */
+    .tabs-wrap { max-width:1200px; margin:0 auto; padding:2rem 1.5rem 0; }
+    .tabs { display:flex; gap:0.5rem; background:rgba(236,72,153,0.06); border:1px solid var(--glass-border); border-radius:14px; padding:0.35rem; width:fit-content; }
+    .tab-btn {
+      padding:0.65rem 1.75rem; border:none; border-radius:10px; font-size:0.92rem;
+      font-weight:600; cursor:pointer; transition:all 0.25s; background:transparent; color:var(--text-muted);
+    }
+    .tab-btn.active { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; box-shadow:0 4px 14px rgba(236,72,153,0.3); }
+    .tab-btn:hover:not(.active) { color:var(--primary); background:rgba(236,72,153,0.08); }
+
+    /* PHOTOS TAB */
+    .tab-content { display:none; padding:2rem 0; }
+    .tab-content.active { display:block; }
+
+    .photos-grid { columns:1; column-gap:1.25rem; max-width:520px; margin:0 auto; }
+    .photo-card {
+      break-inside:avoid; margin-bottom:1.25rem; background:var(--card);
+      border-radius:16px; overflow:hidden; box-shadow:var(--shadow);
+      border:1px solid var(--border); transition:all 0.3s; position:relative;
+    }
+    .photo-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+    .img-wrap { position:relative; overflow:hidden; }
+    .photo-img { width:100%; display:block; object-fit:cover; transition:transform 0.3s; }
+    .photo-card:hover .photo-img:not(.locked) { transform:scale(1.04); }
+    .photo-img.locked { filter:blur(18px); transform:scale(1.1); }
+    .lock-overlay { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.75rem; }
+    .lock-icon { width:52px; height:52px; background:rgba(255,255,255,0.95); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.4rem; box-shadow:0 4px 16px rgba(0,0,0,0.12); }
+    .lock-upgrade { background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; border:none; border-radius:20px; padding:0.5rem 1.2rem; font-size:0.82rem; font-weight:600; cursor:pointer; text-decoration:none; transition:all 0.2s; }
+    .lock-upgrade:hover { opacity:0.9; transform:scale(1.04); }
+    .top-badge { position:absolute; top:0.6rem; left:0.6rem; }
+    .badge-premium { display:inline-flex; align-items:center; gap:0.2rem; background:linear-gradient(135deg,var(--primary),var(--accent)); color:white; font-size:0.62rem; font-weight:700; padding:0.2rem 0.55rem; border-radius:20px; text-transform:uppercase; letter-spacing:0.05em; }
+    .badge-free { display:inline-flex; background:rgba(16,185,129,0.14); color:#059669; font-size:0.62rem; font-weight:700; padding:0.2rem 0.55rem; border-radius:20px; text-transform:uppercase; }
+    .card-body { padding:0.75rem 0.9rem 0.9rem; }
+    .card-title { font-size:0.88rem; font-weight:600; color:var(--text); margin-bottom:0.3rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .card-meta { display:flex; align-items:center; gap:0.4rem; }
+
+    /* VIDEOS TAB - Netflix style */
+    .videos-section { padding:1rem 0; }
+    .video-row { margin-bottom:2.5rem; }
+    .video-row-title { font-size:1.15rem; font-weight:700; margin-bottom:1rem; color:var(--text); }
+    .video-grid { display:grid; grid-template-columns:1fr; gap:1.25rem; max-width:520px; margin:0 auto; }
+
+    .video-card {
+      background:var(--card); border-radius:16px; overflow:hidden;
+      box-shadow:var(--shadow); border:1px solid var(--border);
+      transition:all 0.3s; position:relative; cursor:pointer;
+    }
+    .video-card:hover { transform:translateY(-5px); box-shadow:var(--shadow-lg); }
+    .video-thumb-wrap { position:relative; overflow:hidden; }
+    .video-thumb { width:100%; height:180px; object-fit:cover; display:block; transition:transform 0.3s; }
+    .video-card:hover .video-thumb:not(.locked) { transform:scale(1.04); }
+    .video-thumb.locked { filter:blur(14px); transform:scale(1.08); }
+    .play-btn {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      width:52px; height:52px; background:rgba(255,255,255,0.92);
+      border-radius:50%; display:flex; align-items:center; justify-content:center;
+      box-shadow:0 4px 20px rgba(0,0,0,0.18); transition:transform 0.2s;
+    }
+    .video-card:hover .play-btn { transform:translate(-50%,-50%) scale(1.1); }
+    .play-tri { width:0; height:0; border-top:10px solid transparent; border-bottom:10px solid transparent; border-left:17px solid var(--primary); margin-left:4px; }
+    .duration-chip { position:absolute; bottom:0.5rem; right:0.5rem; background:rgba(0,0,0,0.75); color:white; font-size:0.68rem; font-weight:600; padding:0.2rem 0.5rem; border-radius:5px; }
+    .video-card-body { padding:0.85rem 1rem 1rem; }
+    .video-card-title { font-size:0.9rem; font-weight:600; color:var(--text); margin-bottom:0.4rem; }
+    .video-card-meta { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; }
+    .badge-video { display:inline-flex; background:rgba(99,102,241,0.12); color:#4F46E5; font-size:0.62rem; font-weight:700; padding:0.2rem 0.55rem; border-radius:20px; }
+
+    /* SKELETON */
+    .skel { background:linear-gradient(90deg,rgba(236,72,153,0.07) 25%,rgba(236,72,153,0.14) 50%,rgba(236,72,153,0.07) 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:10px; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    .empty-state { text-align:center; padding:4rem 2rem; color:var(--text-muted); }
+    .empty-state h3 { font-size:1.2rem; margin-bottom:0.5rem; color:var(--text); }
+
+    footer { background:linear-gradient(135deg,#1F0A13 0%,#2D0E1E 100%); color:rgba(255,255,255,0.65); text-align:center; padding:2.5rem 1.5rem; margin-top:3rem; }
+    .footer-brand { font-size:1.3rem; font-weight:800; background:linear-gradient(135deg,var(--secondary),var(--primary)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:0.5rem; display:block; }
+    footer p { font-size:0.85rem; }
+
+    @media(max-width:768px){ .nav-links{display:none} .hamburger{display:flex} }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="./index.html" class="nav-brand">CreatorVault</a>
+  <div class="nav-links">
+    <a href="./index.html">Home</a>
+    <a href="./content.html" class="active">Content</a>
+    <a href="./account.html#membership">Membership</a>
+    <a href="./account.html" class="btn-nav" id="navAccountLink">Login / Register</a>
+  </div>
+  <button class="hamburger" id="hamburgerBtn" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="mobile-overlay" id="mobileOverlay"></div>
+<div class="mobile-menu" id="mobileMenu">
+  <div class="mobile-menu-header">
+    <span class="nav-brand">CreatorVault</span>
+    <button class="mobile-menu-close" id="menuClose">✕</button>
+  </div>
+  <div class="mobile-links">
+    <a href="./index.html">Home</a>
+    <a href="./content.html">Content</a>
+    <a href="./account.html">Account</a>
+  </div>
+</div>
+
+<div class="page-hero">
+  <h1>Browse <span>Content</span></h1>
+  <p>Explore all photos and videos — premium content awaits members.</p>
+</div>
+
+<div class="tabs-wrap">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="photos">📸 Photos</button>
+    <button class="tab-btn" data-tab="videos">🎥 Videos</button>
+  </div>
+
+  <!-- PHOTOS TAB -->
+  <div class="tab-content active" id="tab-photos">
+    <div class="photos-grid" id="photosGrid">
+      <div class="photo-card"><div class="skel" style="height:220px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div></div>
+      <div class="photo-card"><div class="skel" style="height:280px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div></div>
+      <div class="photo-card"><div class="skel" style="height:190px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div></div>
+      <div class="photo-card"><div class="skel" style="height:250px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div></div>
+    </div>
+  </div>
+
+  <!-- VIDEOS TAB -->
+  <div class="tab-content" id="tab-videos">
+    <div class="videos-section">
+      <div id="videosGrid">
+        <div class="video-grid">
+          <div class="video-card"><div class="skel" style="height:180px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div></div>
+          <div class="video-card"><div class="skel" style="height:180px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div></div>
+          <div class="video-card"><div class="skel" style="height:180px"></div><div class="skel" style="height:12px;margin:10px 12px;border-radius:6px"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span class="footer-brand">CreatorVault</span>
+  <p>© 2025 Sophia Bennett. All rights reserved.</p>
+</footer>
+
+<script>
+  const SUPABASE_URL = 'https://your-project.supabase.co';
+  const SUPABASE_ANON_KEY = 'your-anon-key';
+
+  const { createClient } = supabase;
+  const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const getSession = () => { try { return JSON.parse(localStorage.getItem('cv_session') || 'null'); } catch { return null; } };
+  const session = getSession();
+
+  function escHtml(s) { if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  if (session) { document.getElementById('navAccountLink').textContent = session.user_name ? session.user_name.split(' ')[0] : 'Account'; }
+
+  // Mobile menu
+  const hamburger = document.getElementById('hamburgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  const mobileOverlay = document.getElementById('mobileOverlay');
+  const menuClose = document.getElementById('menuClose');
+  hamburger.addEventListener('click', () => { mobileMenu.classList.add('open'); mobileOverlay.classList.add('open'); document.body.style.overflow='hidden'; });
+  menuClose.addEventListener('click', () => { mobileMenu.classList.remove('open'); mobileOverlay.classList.remove('open'); document.body.style.overflow=''; });
+  mobileOverlay.addEventListener('click', () => { mobileMenu.classList.remove('open'); mobileOverlay.classList.remove('open'); document.body.style.overflow=''; });
+
+  // TABS
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+  let photosLoaded = false, videosLoaded = false;
+
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabBtns.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'photos' && !photosLoaded) loadPhotos();
+      if (btn.dataset.tab === 'videos' && !videosLoaded) loadVideos();
+    });
+  });
+
+  const isPremium = session && (session.membership === 'premium' || session.membership === 'vip' || session.membership === 'basic');
+
+  async function loadPhotos() {
+    photosLoaded = true;
+    const grid = document.getElementById('photosGrid');
+    try {
+      const { data, error } = await db.from('photos').select('*').order('created_at', { ascending:false });
+      if (error) throw error;
+      if (!data || !data.length) {
+        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><h3>No photos yet</h3><p>Check back soon!</p></div>';
+        return;
+      }
+      const heights = [180,220,260,200,240,190,210,270];
+      grid.innerHTML = data.map((p,i) => {
+        const locked = p.premium && !isPremium;
+        const h = heights[i % heights.length];
+        return `<div class="photo-card">
+          <div class="img-wrap">
+            <img src="${escHtml(p.url)}" alt="${escHtml(p.title)}" class="photo-img${locked?' locked':''}" style="height:${h}px" onerror="this.style.background='linear-gradient(135deg,#FCE7F3,#FDF2F8)';this.src=''" />
+            ${locked ? `<div class="lock-overlay"><div class="lock-icon">🔒</div><a href="./account.html" class="lock-upgrade">Upgrade to View</a></div>` : ''}
+            <div class="top-badge">${p.premium ? '<span class="badge-premium">⭐ Premium</span>' : ''}</div>
+          </div>
+          <div class="card-body">
+            <div class="card-title">${escHtml(p.title)}</div>
+            <div class="card-meta">${p.premium ? '<span class="badge-premium">Premium</span>' : '<span class="badge-free">Free</span>'}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } catch {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><h3>Could not load photos</h3><p>Check Supabase configuration.</p></div>';
+    }
+  }
+
+  async function loadVideos() {
+    videosLoaded = true;
+    const container = document.getElementById('videosGrid');
+    try {
+      const { data, error } = await db.from('videos').select('*').order('created_at', { ascending:false });
+      if (error) throw error;
+      if (!data || !data.length) {
+        container.innerHTML = '<div class="empty-state"><h3>No videos yet</h3><p>Check back soon!</p></div>';
+        return;
+      }
+
+      const premium = data.filter(v => v.premium);
+      const free = data.filter(v => !v.premium);
+
+      let html = '';
+      if (premium.length) {
+        html += `<div class="video-row"><div class="video-row-title">⭐ Premium Content</div><div class="video-grid">${renderVideoCards(premium)}</div></div>`;
+      }
+      if (free.length) {
+        html += `<div class="video-row"><div class="video-row-title">Free Videos</div><div class="video-grid">${renderVideoCards(free)}</div></div>`;
+      }
+      container.innerHTML = html;
+    } catch {
+      container.innerHTML = '<div class="empty-state"><h3>Could not load videos</h3><p>Check Supabase configuration.</p></div>';
+    }
+  }
+
+  function renderVideoCards(videos) {
+    return videos.map(v => {
+      const locked = v.premium && !isPremium;
+      return `<div class="video-card">
+        <div class="video-thumb-wrap">
+          <img src="${escHtml(v.thumbnail_url)}" alt="${escHtml(v.title)}" class="video-thumb${locked?' locked':''}" onerror="this.style.background='linear-gradient(135deg,#EDE9FE,#DDD6FE)';this.src=''" />
+          ${!locked ? '<div class="play-btn"><div class="play-tri"></div></div>' : `<div class="lock-overlay"><div class="lock-icon">🔒</div><a href="./account.html" class="lock-upgrade">Unlock</a></div>`}
+          ${v.duration ? `<span class="duration-chip">${escHtml(v.duration)}</span>` : ''}
+          <div class="top-badge">${v.premium ? '<span class="badge-premium">⭐ Premium</span>' : ''}</div>
+        </div>
+        <div class="video-card-body">
+          <div class="video-card-title">${escHtml(v.title)}</div>
+          <div class="video-card-meta">
+            <span class="badge-video">▶ Video</span>
+            ${v.premium ? '<span class="badge-premium">Premium</span>' : '<span class="badge-free">Free</span>'}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  loadPhotos();
+</script>
+<script src="https://replit-cdn.com/replit-pill/replit-pill.global.js" data-repl-id="df04d81c-f319-4ea8-9745-3d4afadb740b"></script></body>
+</html>
